@@ -531,53 +531,75 @@ async function saveStudentData() {
     const name = document.getElementById('selectStudentDiary').value;
     if(!name) return alert("Vui lòng chọn tên học sinh!");
     
-    document.getElementById('loading').style.display = 'flex';
-    
+    // 1. Lấy dữ liệu hiện tại từ giao diện
+    const checks = Array.from(document.querySelectorAll('.growth-step')).map(c => c.checked);
+    const comment = document.getElementById('diaryComment').value;
+    const key = `${name}_${curYear}_${curMonth}_${curWeek}`;
+
+    // 2. CẬP NHẬT REAL-TIME VÀO BỘ NHỚ TẠM (Quan trọng nhất)
+    cloudTrackingData[key] = { checks: checks, comment: comment };
+
+    // 3. Hiển thị thông báo nhỏ (thay vì Loading che hết màn hình)
+    const btn = document.querySelector('button[onclick="saveStudentData()"]');
+    const originalText = btn.innerText;
+    btn.innerText = "⌛ ĐANG ĐỒNG BỘ...";
+    btn.style.opacity = "0.7";
+
     const payload = {
         action: "SAVE_TRACKING",
         student: name,
         year: curYear,
         month: curMonth,
         week: curWeek,
-        checks: Array.from(document.querySelectorAll('.growth-step')).map(c => c.checked),
-        comment: document.getElementById('diaryComment').value
+        checks: checks,
+        comment: comment
     };
 
     try {
+        // Gửi dữ liệu ngầm lên server
         await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
             body: JSON.stringify(payload)
         });
         
-        // Cập nhật vào biến cloudTrackingData ngay lập tức để Web ghi nhớ
-        const key = `${name}_${curYear}_${curMonth}_${curWeek}`;
-        cloudTrackingData[key] = { checks: payload.checks, comment: payload.comment };
-        
-        alert(`Đã lưu thành công cho em ${name}`);
+        // Hiệu ứng thành công tức thì
+        btn.innerText = "✅ ĐÃ LƯU ĐÁM MÂY";
+        btn.classList.remove('btn-garden');
+        btn.style.background = "var(--cyber-green)";
+        btn.style.color = "#000";
+
+        setTimeout(() => {
+            btn.innerText = originalText;
+            btn.style.opacity = "1";
+            btn.style.background = ""; // Trả về màu cũ
+            btn.classList.add('btn-garden');
+        }, 2000);
+
     } catch (e) {
-        alert("Lỗi khi gửi dữ liệu lên hệ thống!");
-    } finally {
-        document.getElementById('loading').style.display = 'none';
+        alert("Lỗi đồng bộ! Dữ liệu tạm thời chỉ lưu tại máy này.");
+        btn.innerText = originalText;
     }
 }
-
 function loadStudentData() {
     const name = document.getElementById('selectStudentDiary').value;
-    document.getElementById('diaryNameDisplay').innerText = name || "HỌC SINH";
+    const nameDisplay = document.getElementById('diaryNameDisplay');
+    if(nameDisplay) nameDisplay.innerText = name || "HỌC SINH";
     
     const key = `${name}_${curYear}_${curMonth}_${curWeek}`;
-    // Lấy dữ liệu từ cloudTrackingData đã được load từ Sheet về
-    const data = cloudTrackingData[key] || {checks: [], comment: ""};
+    
+    // Truy xuất cực nhanh từ RAM
+    const data = cloudTrackingData[key] || { checks: [], comment: "" };
     
     const checkBoxes = document.querySelectorAll('.growth-step');
     checkBoxes.forEach((cb, i) => {
-        // Kiểm tra nếu có dữ liệu checks thì gán, không thì mặc định false
         cb.checked = (data.checks && data.checks[i]) ? true : false;
     });
     
-    document.getElementById('diaryComment').value = data.comment || "";
-    handleGrowthUI();
+    const commentArea = document.getElementById('diaryComment');
+    if(commentArea) commentArea.value = data.comment || "";
+    
+    handleGrowthUI(); // Cập nhật hình ảnh cây ngay lập tức
 }
 
 // Khởi chạy hệ thống cùng code cũ
