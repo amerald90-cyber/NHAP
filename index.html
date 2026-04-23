@@ -262,7 +262,7 @@ document.onkeydown = function(e) {
     if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 67 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) return false;
 }
 
-    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxXtsABOY-jz7k9k54_u_0icXFoYI3mgjrjzrITlKRZtkhYnBz01h4MbJVYz0XPgH6q/exec"; 
+    const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwl79dP0bB_vz0f3LJrdqKiWdyb1c0uNCoPI0Ut1WUJN-P5iNW02vvQcVxqK4a8JgmI/exec"; 
     const BG_URL = "https://lh3.googleusercontent.com/d/1Ed63Y4L1jsJy8tI9L7Bf5xBLMaCJbLoH";
     const LOGO_CAY_TO = "https://lh3.googleusercontent.com/d/1ldUHvwfetBt1tg91OQO7xRErkOJYJoGX"; 
     const LOGO_MAM_NON = "https://lh3.googleusercontent.com/d/1zcRCXTCYL5vRzo5TLbT2tux81ISCFrFt"; 
@@ -531,9 +531,9 @@ async function saveStudentData() {
     const name = document.getElementById('selectStudentDiary').value;
     if(!name) return alert("Vui lòng chọn tên học sinh!");
     
-    document.getElementById('loading').style.display = 'flex'; // Hiện loading
+    document.getElementById('loading').style.display = 'flex';
     
-    const dataToSave = {
+    const payload = {
         action: "SAVE_TRACKING",
         student: name,
         year: curYear,
@@ -547,31 +547,36 @@ async function saveStudentData() {
         await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
-            body: JSON.stringify(dataToSave)
+            body: JSON.stringify(payload)
         });
         
-        // Cập nhật vào bộ nhớ tạm để không cần load lại trang
+        // Cập nhật vào biến cloudTrackingData ngay lập tức để Web ghi nhớ
         const key = `${name}_${curYear}_${curMonth}_${curWeek}`;
-        cloudTrackingData[key] = { checks: dataToSave.checks, comment: dataToSave.comment };
+        cloudTrackingData[key] = { checks: payload.checks, comment: payload.comment };
         
-        alert(`Đã đồng bộ lên hệ thống cho em ${name} thành công!`);
+        alert(`Đã lưu thành công cho em ${name}`);
     } catch (e) {
-        alert("Lỗi kết nối máy chủ!");
+        alert("Lỗi khi gửi dữ liệu lên hệ thống!");
     } finally {
-        document.getElementById('loading').style.display = 'none'; // Ẩn loading
+        document.getElementById('loading').style.display = 'none';
     }
 }
+
 function loadStudentData() {
     const name = document.getElementById('selectStudentDiary').value;
     document.getElementById('diaryNameDisplay').innerText = name || "HỌC SINH";
     
     const key = `${name}_${curYear}_${curMonth}_${curWeek}`;
+    // Lấy dữ liệu từ cloudTrackingData đã được load từ Sheet về
     const data = cloudTrackingData[key] || {checks: [], comment: ""};
     
     const checkBoxes = document.querySelectorAll('.growth-step');
-    checkBoxes.forEach((cb, i) => cb.checked = data.checks[i] || false);
-    document.getElementById('diaryComment').value = data.comment || "";
+    checkBoxes.forEach((cb, i) => {
+        // Kiểm tra nếu có dữ liệu checks thì gán, không thì mặc định false
+        cb.checked = (data.checks && data.checks[i]) ? true : false;
+    });
     
+    document.getElementById('diaryComment').value = data.comment || "";
     handleGrowthUI();
 }
 
